@@ -45,7 +45,7 @@ MIF is a simple image format with compression features.
 
 ```c
   MImage read_image;
-  mif_read_file("test.mif", &read_image);
+  mif_read_file("example.mif", &read_image);
 
   printf("Width: %d Height: %d\n", read_image.width, read_image.height);
   for (int i = 0; i < read_image.width * read_image.height; i++) {
