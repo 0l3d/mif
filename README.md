@@ -4,6 +4,7 @@ MIF is a simple image format with compression features.
 
 ## Features
 
+- MIF now has its own viewer.
 - RLE Compression
 - ZLIB Compression (coming soon.)
 - Raw Data

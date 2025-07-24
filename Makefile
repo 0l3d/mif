@@ -1,8 +1,8 @@
 CC=gcc
-CFLAGS= -g -O2 -march=native
-LDFLAGS=
-TARGET=test
-SOURCES=src/libtest.c src/mif.c
+CFLAGS=-Os -s `sdl2-config --cflags`
+LDFLAGS=`sdl2-config --libs` -lm
+TARGET=viewer
+SOURCES=src/mif.c src/viewer.c
 OBJECTS=$(SOURCES:.c=.o)
 
 all: $(TARGET) minimize
@@ -10,12 +10,12 @@ all: $(TARGET) minimize
 $(TARGET): $(OBJECTS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-
 %.o: %.c
-	$(CC) -o $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 minimize:
 	strip $(TARGET)
 
 clean:
 	rm -rf $(OBJECTS) $(TARGET)
+

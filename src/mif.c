@@ -1,6 +1,7 @@
 #include "mif.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 void mif_generate_pixel(MPixel *block, MColorBlock color) {
   block->color = color;
@@ -112,4 +113,23 @@ void mif_read_file(const char *filename, MImage *outimage) {
     fprintf(stderr, "Unrecognized compression flag: %d", compression_flag);
   }
   fclose(mif_file);
+}
+
+void mif_to_ppm(const char *filename, const char *ppm_filename) {
+  MImage image;
+  mif_read_file(filename, &image);
+  FILE *ppm_file = fopen(ppm_filename, "wb");
+  if (!ppm_file) {
+    perror("PPM open error");
+    return;
+  }
+
+  fprintf(ppm_file, "P6\n%d %d\n255\n", image.width, image.height);
+  for (int i = 0; i < image.width * image.height; i++) {
+    fwrite(&image.pixels[i].color.R, 1, 1, ppm_file);
+    fwrite(&image.pixels[i].color.G, 1, 1, ppm_file);
+    fwrite(&image.pixels[i].color.B, 1, 1, ppm_file);
+  }
+  fclose(ppm_file);
+  free(image.pixels);
 }

@@ -17,3 +17,5 @@ typedef struct {
 void mif_generate_pixel(MPixel *block, MColorBlock color);
 void mif_write_file(const char *filenam, MImage *image, int compression);
 void mif_read_file(const char *filename, MImage *outimage);
+void mif_to_ppm(const char *filename, const char* ppm_filename);
+void ppm_to_mif(const char *filename, MImage *outimage);
