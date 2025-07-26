@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Os -s `sdl2-config --cflags`
-LDFLAGS=`sdl2-config --libs` -lm
+LDFLAGS=`sdl2-config --libs` -lm -lz
 TARGET=viewer
 SOURCES=src/mif.c src/viewer.c
 OBJECTS=$(SOURCES:.c=.o)

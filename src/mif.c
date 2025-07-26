@@ -1,13 +1,17 @@
 #include "mif.h"
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <zlib.h>
+
+#define CHUNK 16384
 
 void mif_generate_pixel(MPixel *block, MColorBlock color) {
   block->color = color;
 }
 
-void mif_write_file(const char *filename, MImage *image, int compression) {
+void mif_write_file(const char *filename, MImage *image, int compression,
+                    int zlib_compression_level) {
   FILE *mif_file = fopen(filename, "wb");
   if (mif_file == NULL) {
     perror("mif_write_file failed to open file: ");
@@ -53,11 +57,17 @@ void mif_write_file(const char *filename, MImage *image, int compression) {
     fprintf(stderr, "Unrecognized compression_flag: %d", compression);
     return;
   }
+
   fclose(mif_file);
+  const char *temp_file = "example.mif.tmp";
+  mif_compress_file(filename, temp_file, zlib_compression_level);
+  rename(temp_file, filename);
 }
 
 void mif_read_file(const char *filename, MImage *outimage) {
-  FILE *mif_file = fopen(filename, "rb");
+  const char *temp_file = "temp_uncompressed.mif";
+  mif_decompress_file(filename, temp_file);
+  FILE *mif_file = fopen(temp_file, "rb");
   if (mif_file == NULL) {
     perror("Image open error.");
     return;
@@ -113,6 +123,7 @@ void mif_read_file(const char *filename, MImage *outimage) {
     fprintf(stderr, "Unrecognized compression flag: %d", compression_flag);
   }
   fclose(mif_file);
+  remove(temp_file);
 }
 
 void mif_to_ppm(const char *filename, const char *ppm_filename) {
@@ -132,4 +143,112 @@ void mif_to_ppm(const char *filename, const char *ppm_filename) {
   }
   fclose(ppm_file);
   free(image.pixels);
+}
+
+void mif_compress_file(const char *filename, const char *out_filename,
+                       int compression_level) {
+  FILE *infile = fopen(filename, "rb");
+  if (!infile) {
+    perror("Input file open failed");
+    return;
+  }
+
+  FILE *outfile = fopen(out_filename, "wb");
+  if (!outfile) {
+    perror("Output file open failed");
+    fclose(infile);
+    return;
+  }
+  int ret, flush;
+  unsigned have;
+  z_stream stream;
+  unsigned char in[CHUNK];
+  unsigned char out[CHUNK];
+
+  stream.zalloc = Z_NULL;
+  stream.zfree = Z_NULL;
+  stream.opaque = Z_NULL;
+  ret = deflateInit(&stream, compression_level);
+  if (ret != Z_OK)
+    return;
+
+  do {
+    stream.avail_in = fread(in, 1, CHUNK, infile);
+    if (ferror(infile)) {
+      (void)deflateEnd(&stream);
+      return;
+    }
+    flush = feof(infile) ? Z_FINISH : Z_NO_FLUSH;
+    stream.next_in = in;
+
+    do {
+      stream.avail_out = CHUNK;
+      stream.next_out = out;
+      ret = deflate(&stream, flush);
+      assert(ret != Z_STREAM_ERROR);
+      have = CHUNK - stream.avail_out;
+      if (fwrite(out, 1, have, outfile) != have || ferror(outfile)) {
+        (void)deflateEnd(&stream);
+        return;
+      }
+    } while (stream.avail_out == 0);
+    assert(stream.avail_in == 0);
+  } while (flush != Z_FINISH);
+  assert(ret == Z_STREAM_END);
+
+  (void)deflateEnd(&stream);
+  fclose(infile);
+  fclose(outfile);
+}
+
+void mif_decompress_file(const char *filename, const char *out_filename) {
+  FILE *infile = fopen(filename, "rb");
+  FILE *outfile = fopen(out_filename, "wb");
+
+  int ret;
+  unsigned have;
+  z_stream stream;
+  unsigned char in[CHUNK];
+  unsigned char out[CHUNK];
+
+  stream.zalloc = Z_NULL;
+  stream.zfree = Z_NULL;
+  stream.opaque = Z_NULL;
+  ret = inflateInit(&stream);
+  if (ret != Z_OK)
+    return;
+
+  do {
+    stream.avail_in = fread(in, 1, CHUNK, infile);
+    if (ferror(infile)) {
+      (void)inflateEnd(&stream);
+      return;
+    }
+    if (stream.avail_in == 0)
+      break;
+    stream.next_in = in;
+
+    do {
+      stream.avail_out = CHUNK;
+      stream.next_out = out;
+      ret = inflate(&stream, Z_NO_FLUSH);
+      assert(ret != Z_STREAM_ERROR);
+      switch (ret) {
+      case Z_NEED_DICT:
+      case Z_DATA_ERROR:
+      case Z_MEM_ERROR:
+        (void)inflateEnd(&stream);
+        return;
+      }
+      have = CHUNK - stream.avail_out;
+      if (fwrite(out, 1, have, outfile) != have || ferror(outfile)) {
+        (void)inflateEnd(&stream);
+        return;
+      }
+    } while (stream.avail_out == 0);
+  } while (ret != Z_STREAM_END);
+
+  (void)inflateEnd(&stream);
+  fclose(infile);
+  fclose(outfile);
 }
