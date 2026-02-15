@@ -14,7 +14,7 @@ MIF is a simple image format with compression features.
 **For viewer and example.c**:
 
 ```bash
-git clone https://github.com/0l3d/mif.git
+git clone https://git.sr.ht/~oled/mif
 cd mif/
 make # for viewer
 gcc src/mif.c example.c -o example -lz # for example
